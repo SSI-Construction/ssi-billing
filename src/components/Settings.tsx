@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSettingsStore } from '../store/settingsStore';
 import type { CompanySettings } from '../types';
-import { Save, Building2 } from 'lucide-react';
+import { Save, Building2, Download, Upload } from 'lucide-react';
+import { db } from '../store/db';
 
 export const Settings: React.FC = () => {
   const settings = useSettingsStore((s) => s.settings);
@@ -9,12 +10,77 @@ export const Settings: React.FC = () => {
   const [form, setForm] = useState<Partial<CompanySettings>>({});
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (settings) {
       setForm({ ...settings });
     }
   }, [settings]);
+
+  const handleExport = async () => {
+    try {
+      const [clients, invoices, serviceTemplates, allSettings, reminders] = await Promise.all([
+        db.clients.toArray(),
+        db.invoices.toArray(),
+        db.serviceTemplates.toArray(),
+        db.settings.toArray(),
+        db.reminders.toArray(),
+      ]);
+      const backup = {
+        exportedAt: new Date().toISOString(),
+        version: 1,
+        clients,
+        invoices,
+        serviceTemplates,
+        settings: allSettings,
+        reminders,
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ssi-billing-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setToast(`Exported ${clients.length} clients, ${invoices.length} invoices, ${serviceTemplates.length} templates, ${reminders.length} reminders`);
+      setTimeout(() => setToast(null), 5000);
+    } catch (err) {
+      console.error('Export failed:', err);
+      setToast('Export failed — check console for details');
+      setTimeout(() => setToast(null), 5000);
+    }
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data.version || !data.exportedAt) {
+        throw new Error('Invalid backup file format');
+      }
+      await db.transaction('rw', [db.clients, db.invoices, db.serviceTemplates, db.settings, db.reminders], async () => {
+        if (data.clients?.length) await db.clients.bulkPut(data.clients);
+        if (data.invoices?.length) await db.invoices.bulkPut(data.invoices);
+        if (data.serviceTemplates?.length) await db.serviceTemplates.bulkPut(data.serviceTemplates);
+        if (data.settings?.length) await db.settings.bulkPut(data.settings);
+        if (data.reminders?.length) await db.reminders.bulkPut(data.reminders);
+      });
+      setToast(`Imported ${data.clients?.length || 0} clients, ${data.invoices?.length || 0} invoices`);
+      setTimeout(() => setToast(null), 5000);
+    } catch (err) {
+      console.error('Import failed:', err);
+      setToast('Import failed — invalid file or format');
+      setTimeout(() => setToast(null), 5000);
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -214,6 +280,36 @@ export const Settings: React.FC = () => {
                   min="0"
                 />
               </div>
+            </div>
+          </div>
+        </div>
+        {/* Data Management */}
+        <div className="card">
+          <div className="card-header">
+            <h2 className="text-sm font-semibold text-gray-700">Data Management</h2>
+          </div>
+          <div className="card-body">
+            <p className="text-sm text-gray-500 mb-4">
+              Export all your data (clients, invoices, templates, reminders, settings) as a JSON backup file, or restore from a previous backup.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={handleExport} className="btn btn-primary">
+                <Download size={18} /> Export All Data
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="btn bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                disabled={importing}
+              >
+                <Upload size={18} /> {importing ? 'Importing...' : 'Import Backup'}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImport}
+                className="hidden"
+              />
             </div>
           </div>
         </div>
