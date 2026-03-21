@@ -72,14 +72,14 @@
           ]
         }
       ],
-      "icon": "public/logo.png"
+      "icon": "public/icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "public/logo.png",
-      "uninstallerIcon": "public/logo.png",
+      "installerIcon": "public/icon.ico",
+      "uninstallerIcon": "public/icon.ico",
       "shortcutName": "SSI Billing"
     }
   }

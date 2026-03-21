@@ -19,7 +19,7 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 700,
     title: 'SSI Billing - Invoice Management',
-    icon: path.join(__dirname, '..', 'public', 'logo.png'),
+    icon: path.join(__dirname, '..', 'public', 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,

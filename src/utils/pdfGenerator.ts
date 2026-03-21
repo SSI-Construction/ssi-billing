@@ -7,7 +7,10 @@ import { format, parseISO } from 'date-fns';
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    // Only set crossOrigin for http(s) URLs; file:// and data: URLs fail with it
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      img.crossOrigin = 'anonymous';
+    }
     img.onload = () => resolve(img);
     img.onerror = reject;
     img.src = url;
@@ -33,8 +36,9 @@ export async function generateInvoicePDF(
   doc.rect(0, 0, pageWidth, headerHeight, 'F');
 
   // Logo in header (left side, with white background pad)
+  const logoSrc = settings.logoUrl || './logo.png';
   try {
-    const logoImg = await loadImage('/logo.png');
+    const logoImg = await loadImage(logoSrc);
     const logoMaxH = 32;
     const logoMaxW = 70;
     const aspect = logoImg.naturalWidth / logoImg.naturalHeight;

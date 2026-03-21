@@ -18,11 +18,11 @@ export class SSIBillingDB extends Dexie {
     });
 
     this.version(1).stores({
-      clients: 'id, name, createdAt',
-      invoices: 'id, invoiceNumber, clientId, status, invoiceDate, dueDate, createdAt',
-      serviceTemplates: 'id, name',
-      settings: 'id',
-      reminders: 'id, invoiceId, type, dueDate, completed',
+      clients: '@id, name, createdAt',
+      invoices: '@id, invoiceNumber, clientId, status, invoiceDate, dueDate, createdAt',
+      serviceTemplates: '@id, name',
+      settings: '@id',
+      reminders: '@id, invoiceId, type, dueDate, completed',
     });
 
     // Configure Dexie Cloud sync if URL is provided
