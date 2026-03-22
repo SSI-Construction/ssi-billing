@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from './db';
+import { supabase, reminderFromRow, reminderToRow } from './db';
 import type { Reminder } from '../types';
 
 interface ReminderStore {
@@ -20,24 +20,26 @@ export const useReminderStore = create<ReminderStore>((set, get) => ({
 
   loadReminders: async () => {
     set({ loading: true });
-    const reminders = await db.reminders.orderBy('dueDate').toArray();
-    set({ reminders, loading: false });
+    const { data, error } = await supabase.from('reminders').select('*').order('due_date');
+    if (error) throw error;
+    set({ reminders: (data ?? []).map(reminderFromRow), loading: false });
   },
 
   addReminder: async (reminderData) => {
-    const reminder: Reminder = {
-      ...reminderData,
-      id: uuidv4(),
-      createdAt: new Date().toISOString(),
-    };
-    await db.reminders.add(reminder);
+    const reminder: Reminder = { ...reminderData, id: uuidv4(), createdAt: new Date().toISOString() };
+    const { error } = await supabase.from('reminders').insert(reminderToRow(reminder));
+    if (error) throw error;
     set((state) => ({ reminders: [...state.reminders, reminder] }));
     return reminder;
   },
 
   completeReminder: async (id) => {
     const now = new Date().toISOString();
-    await db.reminders.where({id}).modify({ completed: true, completedDate: now });
+    const { error } = await supabase
+      .from('reminders')
+      .update({ completed: true, completed_date: now })
+      .eq('id', id);
+    if (error) throw error;
     set((state) => ({
       reminders: state.reminders.map((r) =>
         r.id === id ? { ...r, completed: true, completedDate: now } : r
@@ -46,7 +48,8 @@ export const useReminderStore = create<ReminderStore>((set, get) => ({
   },
 
   deleteReminder: async (id) => {
-    await db.reminders.where({id}).delete();
+    const { error } = await supabase.from('reminders').delete().eq('id', id);
+    if (error) throw error;
     set((state) => ({ reminders: state.reminders.filter((r) => r.id !== id) }));
   },
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from './db';
+import { supabase, clientFromRow, clientToRow } from './db';
 import type { Client } from '../types';
 
 interface ClientStore {
@@ -19,33 +19,32 @@ export const useClientStore = create<ClientStore>((set, get) => ({
 
   loadClients: async () => {
     set({ loading: true });
-    const clients = await db.clients.orderBy('name').toArray();
-    set({ clients, loading: false });
+    const { data, error } = await supabase.from('clients').select('*').order('name');
+    if (error) throw error;
+    set({ clients: (data ?? []).map(clientFromRow), loading: false });
   },
 
   addClient: async (clientData) => {
     const now = new Date().toISOString();
-    const client: Client = {
-      ...clientData,
-      id: uuidv4(),
-      createdAt: now,
-      updatedAt: now,
-    };
-    await db.clients.add(client);
+    const client: Client = { ...clientData, id: uuidv4(), createdAt: now, updatedAt: now };
+    const { error } = await supabase.from('clients').insert(clientToRow(client));
+    if (error) throw error;
     set((state) => ({ clients: [...state.clients, client].sort((a, b) => a.name.localeCompare(b.name)) }));
     return client;
   },
 
   updateClient: async (id, updates) => {
     const updatedData = { ...updates, updatedAt: new Date().toISOString() };
-    await db.clients.where({id}).modify(updatedData);
+    const { error } = await supabase.from('clients').update(clientToRow(updatedData)).eq('id', id);
+    if (error) throw error;
     set((state) => ({
       clients: state.clients.map((c) => (c.id === id ? { ...c, ...updatedData } : c)),
     }));
   },
 
   deleteClient: async (id) => {
-    await db.clients.where({id}).delete();
+    const { error } = await supabase.from('clients').delete().eq('id', id);
+    if (error) throw error;
     set((state) => ({ clients: state.clients.filter((c) => c.id !== id) }));
   },
 

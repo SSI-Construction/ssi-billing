@@ -18,10 +18,8 @@
     "web:preview": "vite preview --mode web"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.99.3",
     "date-fns": "^4.1.0",
-    "dexie": "^4.3.0",
-    "dexie-cloud-addon": "^4.3.9",
-    "dexie-react-hooks": "^4.2.0",
     "jspdf": "^4.1.0",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.563.0",

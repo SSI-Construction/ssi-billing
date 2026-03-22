@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { db } from './db';
+import { supabase, settingsFromRow, settingsToRow } from './db';
 import type { CompanySettings } from '../types';
 
 interface SettingsStore {
@@ -15,13 +15,17 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
 
   loadSettings: async () => {
     set({ loading: true });
-    const settings = await db.settings.get('default');
-    set({ settings: settings ?? null, loading: false });
+    const { data } = await supabase.from('settings').select('*').eq('id', 'default').single();
+    set({ settings: data ? settingsFromRow(data) : null, loading: false });
   },
 
   updateSettings: async (updates) => {
-    await db.settings.where({id: 'default'}).modify(updates);
-    const settings = await db.settings.get('default');
-    set({ settings: settings ?? null });
+    const { error } = await supabase
+      .from('settings')
+      .update(settingsToRow(updates))
+      .eq('id', 'default');
+    if (error) throw error;
+    const { data } = await supabase.from('settings').select('*').eq('id', 'default').single();
+    set({ settings: data ? settingsFromRow(data) : null });
   },
 }));

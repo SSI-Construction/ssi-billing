@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSettingsStore } from '../store/settingsStore';
 import type { CompanySettings } from '../types';
 import { Save, Building2, Download, Upload } from 'lucide-react';
-import { db } from '../store/db';
+import { supabase, clientFromRow, clientToRow, invoiceFromRow, invoiceToRow, templateFromRow, templateToRow, settingsFromRow, settingsToRow, reminderFromRow, reminderToRow } from '../store/db';
 
 export const Settings: React.FC = () => {
   const settings = useSettingsStore((s) => s.settings);
@@ -21,13 +21,18 @@ export const Settings: React.FC = () => {
 
   const handleExport = async () => {
     try {
-      const [clients, invoices, serviceTemplates, allSettings, reminders] = await Promise.all([
-        db.clients.toArray(),
-        db.invoices.toArray(),
-        db.serviceTemplates.toArray(),
-        db.settings.toArray(),
-        db.reminders.toArray(),
+      const [clientsRes, invoicesRes, templatesRes, settingsRes, remindersRes] = await Promise.all([
+        supabase.from('clients').select('*'),
+        supabase.from('invoices').select('*'),
+        supabase.from('service_templates').select('*'),
+        supabase.from('settings').select('*'),
+        supabase.from('reminders').select('*'),
       ]);
+      const clients = (clientsRes.data ?? []).map(clientFromRow);
+      const invoices = (invoicesRes.data ?? []).map(invoiceFromRow);
+      const serviceTemplates = (templatesRes.data ?? []).map(templateFromRow);
+      const allSettings = (settingsRes.data ?? []).map(settingsFromRow);
+      const reminders = (remindersRes.data ?? []).map(reminderFromRow);
       const backup = {
         exportedAt: new Date().toISOString(),
         version: 1,
@@ -63,13 +68,32 @@ export const Settings: React.FC = () => {
       if (!data.version || !data.exportedAt) {
         throw new Error('Invalid backup file format');
       }
-      await db.transaction('rw', [db.clients, db.invoices, db.serviceTemplates, db.settings, db.reminders], async () => {
-        if (data.clients?.length) await db.clients.bulkPut(data.clients);
-        if (data.invoices?.length) await db.invoices.bulkPut(data.invoices);
-        if (data.serviceTemplates?.length) await db.serviceTemplates.bulkPut(data.serviceTemplates);
-        if (data.settings?.length) await db.settings.bulkPut(data.settings);
-        if (data.reminders?.length) await db.reminders.bulkPut(data.reminders);
-      });
+      // Upsert each table's data
+      if (data.clients?.length) {
+        const rows = data.clients.map((c: Record<string, unknown>) => clientToRow(c as Partial<import('../types').Client>));
+        const { error } = await supabase.from('clients').upsert(rows);
+        if (error) throw error;
+      }
+      if (data.invoices?.length) {
+        const rows = data.invoices.map((i: Record<string, unknown>) => invoiceToRow(i as Partial<import('../types').Invoice>));
+        const { error } = await supabase.from('invoices').upsert(rows);
+        if (error) throw error;
+      }
+      if (data.serviceTemplates?.length) {
+        const rows = data.serviceTemplates.map((t: Record<string, unknown>) => templateToRow(t as Partial<import('../types').ServiceTemplate>));
+        const { error } = await supabase.from('service_templates').upsert(rows);
+        if (error) throw error;
+      }
+      if (data.settings?.length) {
+        const rows = data.settings.map((s: Record<string, unknown>) => settingsToRow(s as Partial<import('../types').CompanySettings>));
+        const { error } = await supabase.from('settings').upsert(rows);
+        if (error) throw error;
+      }
+      if (data.reminders?.length) {
+        const rows = data.reminders.map((r: Record<string, unknown>) => reminderToRow(r as Partial<import('../types').Reminder>));
+        const { error } = await supabase.from('reminders').upsert(rows);
+        if (error) throw error;
+      }
       setToast(`Imported ${data.clients?.length || 0} clients, ${data.invoices?.length || 0} invoices`);
       setTimeout(() => setToast(null), 5000);
     } catch (err) {
