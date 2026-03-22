@@ -33,16 +33,15 @@ export const useInvoiceStore = create<InvoiceStore>((set, get) => ({
 
   addInvoice: async (invoiceData) => {
     const now = new Date().toISOString();
-    const invoice = {
+    const invoice: Invoice = {
       ...invoiceData,
+      id: uuidv4(),
       createdAt: now,
       updatedAt: now,
     };
-    // Let Dexie Cloud auto-generate the @id
-    const generatedId = await db.invoices.add(invoice as Invoice);
-    const saved: Invoice = { ...invoice, id: String(generatedId) };
-    set((state) => ({ invoices: [saved, ...state.invoices] }));
-    return saved;
+    await db.invoices.add(invoice);
+    set((state) => ({ invoices: [invoice, ...state.invoices] }));
+    return invoice;
   },
 
   updateInvoice: async (id, updates) => {
