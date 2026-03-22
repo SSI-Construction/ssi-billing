@@ -45,7 +45,9 @@ export const useInvoiceStore = create<InvoiceStore>((set, get) => ({
   },
 
   updateInvoice: async (id, updates) => {
-    const updatedData = { ...updates, updatedAt: new Date().toISOString() };
+    // Strip primary key and Dexie Cloud system properties to avoid update rejection
+    const { id: _id, owner: _o, realmId: _r, ...rest } = updates as Record<string, unknown>;
+    const updatedData = { ...rest, updatedAt: new Date().toISOString() };
     await db.invoices.update(id, updatedData);
     set((state) => ({
       invoices: state.invoices.map((inv) => (inv.id === id ? { ...inv, ...updatedData } : inv)),
