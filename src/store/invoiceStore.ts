@@ -57,14 +57,14 @@ export const useInvoiceStore = create<InvoiceStore>((set, get) => ({
         cleanUpdates[key] = (updates as Record<string, unknown>)[key];
       }
     }
-    await db.invoices.update(id, cleanUpdates as Partial<Invoice>);
+    await db.invoices.where({id}).modify(cleanUpdates as Partial<Invoice>);
     set((state) => ({
       invoices: state.invoices.map((inv) => (inv.id === id ? { ...inv, ...cleanUpdates } : inv)),
     }));
   },
 
   deleteInvoice: async (id) => {
-    await db.invoices.delete(id);
+    await db.invoices.where({id}).delete();
     await db.reminders.where('invoiceId').equals(id).delete();
     set((state) => ({ invoices: state.invoices.filter((inv) => inv.id !== id) }));
   },
@@ -86,13 +86,13 @@ export const useInvoiceStore = create<InvoiceStore>((set, get) => ({
     const paddedNum = String(num).padStart(4, '0');
     const invoiceNumber = prefix ? `${prefix}-${paddedNum}` : paddedNum;
 
-    await db.settings.update('default', { nextInvoiceNumber: num + 1 });
+    await db.settings.where({id: 'default'}).modify({ nextInvoiceNumber: num + 1 });
     return invoiceNumber;
   },
 
   markAsSent: async (id) => {
     const now = new Date().toISOString();
-    await db.invoices.update(id, { status: 'sent', sentDate: now, updatedAt: now });
+    await db.invoices.where({id}).modify({ status: 'sent', sentDate: now, updatedAt: now });
     set((state) => ({
       invoices: state.invoices.map((inv) =>
         inv.id === id ? { ...inv, status: 'sent' as const, sentDate: now, updatedAt: now } : inv
@@ -104,7 +104,7 @@ export const useInvoiceStore = create<InvoiceStore>((set, get) => ({
     const now = new Date().toISOString();
     const updates: Partial<Invoice> = { status: 'paid', paidDate: now, updatedAt: now };
     if (paidAmount !== undefined) updates.paidAmount = paidAmount;
-    await db.invoices.update(id, updates);
+    await db.invoices.where({id}).modify(updates);
     set((state) => ({
       invoices: state.invoices.map((inv) =>
         inv.id === id ? { ...inv, ...updates } : inv
@@ -114,7 +114,7 @@ export const useInvoiceStore = create<InvoiceStore>((set, get) => ({
 
   markAsOverdue: async (id) => {
     const now = new Date().toISOString();
-    await db.invoices.update(id, { status: 'overdue', updatedAt: now });
+    await db.invoices.where({id}).modify({ status: 'overdue', updatedAt: now });
     set((state) => ({
       invoices: state.invoices.map((inv) =>
         inv.id === id ? { ...inv, status: 'overdue' as const, updatedAt: now } : inv

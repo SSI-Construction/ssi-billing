@@ -20,7 +20,7 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   },
 
   updateSettings: async (updates) => {
-    await db.settings.update('default', updates);
+    await db.settings.where({id: 'default'}).modify(updates);
     const settings = await db.settings.get('default');
     set({ settings: settings ?? null });
   },

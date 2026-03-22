@@ -25,16 +25,6 @@ export class SSIBillingDB extends Dexie {
       reminders: '@id, invoiceId, type, dueDate, completed',
     });
 
-    // v2: Switch from @id (Dexie Cloud auto-generated) to id (custom IDs)
-    // so existing UUID-format keys are accepted by Dexie Cloud sync.
-    this.version(2).stores({
-      clients: 'id, name, createdAt',
-      invoices: 'id, invoiceNumber, clientId, status, invoiceDate, dueDate, createdAt',
-      serviceTemplates: 'id, name',
-      settings: 'id',
-      reminders: 'id, invoiceId, type, dueDate, completed',
-    });
-
     // Configure Dexie Cloud sync if URL is provided
     if (DEXIE_CLOUD_URL) {
       this.cloud.configure({

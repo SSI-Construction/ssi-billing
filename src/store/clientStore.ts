@@ -38,14 +38,14 @@ export const useClientStore = create<ClientStore>((set, get) => ({
 
   updateClient: async (id, updates) => {
     const updatedData = { ...updates, updatedAt: new Date().toISOString() };
-    await db.clients.update(id, updatedData);
+    await db.clients.where({id}).modify(updatedData);
     set((state) => ({
       clients: state.clients.map((c) => (c.id === id ? { ...c, ...updatedData } : c)),
     }));
   },
 
   deleteClient: async (id) => {
-    await db.clients.delete(id);
+    await db.clients.where({id}).delete();
     set((state) => ({ clients: state.clients.filter((c) => c.id !== id) }));
   },
 

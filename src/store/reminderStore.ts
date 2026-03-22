@@ -37,7 +37,7 @@ export const useReminderStore = create<ReminderStore>((set, get) => ({
 
   completeReminder: async (id) => {
     const now = new Date().toISOString();
-    await db.reminders.update(id, { completed: true, completedDate: now });
+    await db.reminders.where({id}).modify({ completed: true, completedDate: now });
     set((state) => ({
       reminders: state.reminders.map((r) =>
         r.id === id ? { ...r, completed: true, completedDate: now } : r
@@ -46,7 +46,7 @@ export const useReminderStore = create<ReminderStore>((set, get) => ({
   },
 
   deleteReminder: async (id) => {
-    await db.reminders.delete(id);
+    await db.reminders.where({id}).delete();
     set((state) => ({ reminders: state.reminders.filter((r) => r.id !== id) }));
   },
 

@@ -40,14 +40,14 @@ export const useServiceTemplateStore = create<ServiceTemplateStore>((set) => ({
   },
 
   updateTemplate: async (id, updates) => {
-    await db.serviceTemplates.update(id, updates);
+    await db.serviceTemplates.where({id}).modify(updates);
     set((state) => ({
       templates: state.templates.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     }));
   },
 
   deleteTemplate: async (id) => {
-    await db.serviceTemplates.delete(id);
+    await db.serviceTemplates.where({id}).delete();
     set((state) => ({ templates: state.templates.filter((t) => t.id !== id) }));
   },
 }));
