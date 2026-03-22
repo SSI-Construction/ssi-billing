@@ -62,7 +62,8 @@ export const InvoiceEditor: React.FC = () => {
     try {
       await updateInvoice(id, form);
       showToast('Invoice saved!');
-    } catch {
+    } catch (err) {
+      console.error('Invoice save error:', err);
       showToast('Failed to save', 'error');
     } finally {
       setSaving(false);

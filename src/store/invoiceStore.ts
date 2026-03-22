@@ -45,9 +45,18 @@ export const useInvoiceStore = create<InvoiceStore>((set, get) => ({
   },
 
   updateInvoice: async (id, updates) => {
-    // Strip primary key and Dexie Cloud system properties to avoid update rejection
-    const { id: _id, owner: _o, realmId: _r, ...rest } = updates as Record<string, unknown>;
-    const updatedData = { ...rest, updatedAt: new Date().toISOString() };
+    // Only pass known Invoice data fields — keeps Dexie Cloud system props out
+    const allowedKeys: (keyof Invoice)[] = [
+      'invoiceNumber', 'clientId', 'invoiceDate', 'dueDate', 'status',
+      'lineItems', 'discount', 'discountType', 'notes',
+      'sentDate', 'paidDate', 'paidAmount', 'reminderSentDates',
+    ];
+    const updatedData: Partial<Invoice> = { updatedAt: new Date().toISOString() };
+    for (const key of allowedKeys) {
+      if (key in (updates as object)) {
+        (updatedData as Record<string, unknown>)[key] = (updates as Record<string, unknown>)[key];
+      }
+    }
     await db.invoices.update(id, updatedData);
     set((state) => ({
       invoices: state.invoices.map((inv) => (inv.id === id ? { ...inv, ...updatedData } : inv)),
