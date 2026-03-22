@@ -51,15 +51,18 @@ export const useInvoiceStore = create<InvoiceStore>((set, get) => ({
       'lineItems', 'discount', 'discountType', 'notes',
       'sentDate', 'paidDate', 'paidAmount', 'reminderSentDates',
     ];
-    const updatedData: Partial<Invoice> = { updatedAt: new Date().toISOString() };
+    const cleanUpdates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
     for (const key of allowedKeys) {
       if (key in (updates as object)) {
-        (updatedData as Record<string, unknown>)[key] = (updates as Record<string, unknown>)[key];
+        cleanUpdates[key] = (updates as Record<string, unknown>)[key];
       }
     }
-    await db.invoices.update(id, updatedData);
+    // Use read-modify-write via put() – works reliably with Dexie Cloud
+    const existing = await db.invoices.get(id);
+    if (!existing) throw new Error('Invoice not found');
+    await db.invoices.put({ ...existing, ...cleanUpdates });
     set((state) => ({
-      invoices: state.invoices.map((inv) => (inv.id === id ? { ...inv, ...updatedData } : inv)),
+      invoices: state.invoices.map((inv) => (inv.id === id ? { ...inv, ...cleanUpdates } : inv)),
     }));
   },
 
@@ -92,7 +95,9 @@ export const useInvoiceStore = create<InvoiceStore>((set, get) => ({
 
   markAsSent: async (id) => {
     const now = new Date().toISOString();
-    await db.invoices.update(id, { status: 'sent', sentDate: now, updatedAt: now });
+    const existing = await db.invoices.get(id);
+    if (!existing) return;
+    await db.invoices.put({ ...existing, status: 'sent', sentDate: now, updatedAt: now });
     set((state) => ({
       invoices: state.invoices.map((inv) =>
         inv.id === id ? { ...inv, status: 'sent' as const, sentDate: now, updatedAt: now } : inv
@@ -102,9 +107,11 @@ export const useInvoiceStore = create<InvoiceStore>((set, get) => ({
 
   markAsPaid: async (id, paidAmount) => {
     const now = new Date().toISOString();
+    const existing = await db.invoices.get(id);
+    if (!existing) return;
     const updates: Partial<Invoice> = { status: 'paid', paidDate: now, updatedAt: now };
     if (paidAmount !== undefined) updates.paidAmount = paidAmount;
-    await db.invoices.update(id, updates);
+    await db.invoices.put({ ...existing, ...updates });
     set((state) => ({
       invoices: state.invoices.map((inv) =>
         inv.id === id ? { ...inv, ...updates } : inv
@@ -114,7 +121,9 @@ export const useInvoiceStore = create<InvoiceStore>((set, get) => ({
 
   markAsOverdue: async (id) => {
     const now = new Date().toISOString();
-    await db.invoices.update(id, { status: 'overdue', updatedAt: now });
+    const existing = await db.invoices.get(id);
+    if (!existing) return;
+    await db.invoices.put({ ...existing, status: 'overdue', updatedAt: now });
     set((state) => ({
       invoices: state.invoices.map((inv) =>
         inv.id === id ? { ...inv, status: 'overdue' as const, updatedAt: now } : inv
